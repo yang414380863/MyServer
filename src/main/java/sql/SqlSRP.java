@@ -78,34 +78,14 @@ public class SqlSRP extends SqlParent {
 					String payee=resultSet.getString("payee");
 					Double value=resultSet.getDouble("value");
 					String timestamp=resultSet.getString("timestamp");
-					state("delete from temp where payer = '"+payer+"'and value = '"+value+"'and timestamp = '"+timestamp+"';");
-					return backForTrade(payee,value,timestamp,socket);
+					state("delete from temp where payer = '"+payer+"';");
+					String result=payee+" "+value+" "+timestamp;
+					return result;
 				}else {
 					resultSet=stateWithReturn("select * from temp where payer = '"+payer+"';");
 				}
 			}
 		}catch (SQLException e){
-			e.printStackTrace();
-			return "error";
-		}
-	}
-
-	String backForTrade(String payee,Double value,String time,Socket socket){
-		try {
-			String result=payee+" "+value+" "+time;
-			PrintWriter out=new PrintWriter(socket.getOutputStream(),true);
-			BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-			System.out.println("send: "+result);//本地打印
-			out.println(result);//输出到客户端
-			String input=in.readLine();
-			states=input.split(" ");//暂时用空格分割
-			String action=states[0];
-			if (action.equals("tradeFromPayer")){
-				return this.tradeFromPayer(states[0],states[1],states[2],Double.parseDouble(states[3]),states[4]);//(收款人ID 付款方ID 时间戳 交易金额 (支付密码+时间戳+userID)的MD5)
-			}else {
-				return "error";
-			}
-		}catch (IOException e){
 			e.printStackTrace();
 			return "error";
 		}
@@ -125,32 +105,33 @@ public class SqlSRP extends SqlParent {
 		try {
 			if (resultSet.next()){
 				return "tradeExisted";
-			}else {
-				//这里需要对比MD5
+			}
+			//这里需要对比MD5
+			resultSet=stateWithReturn("select * from users where userid = '"+payer+"' ;");
+			if (!resultSet.next()){
+				return "payer id not find";
+			}
+			String payPassword=resultSet.getString("paypass");
+			String loginPassword=resultSet.getString("loginpass");
+			String res= MD5.getMD5(payer+loginPassword+payPassword+timeStamp);
+			System.out.println("Receive MD5: "+md5);
+			System.out.println("Server  MD5: "+res);
+			if (res.equals(md5)){
 				resultSet=stateWithReturn("select * from users where userid = '"+payer+"';");
 				resultSet.next();
-				String payPassword=resultSet.getString("paypass");
-				String loginPassword=resultSet.getString("loginpass");
-				String res= MD5.getMD5(payer+loginPassword+payPassword+timeStamp);
-				System.out.println("Receive  basic.MD5: "+md5);
-				System.out.println("Server's basic.MD5: "+res);
-				if (res.equals(md5)){
-					resultSet=stateWithReturn("select * from users where userid = '"+payer+"';");
-					resultSet.next();
-					Double payerBalance=resultSet.getDouble("balance");
-					if (payerBalance<value){
-						return "balanceNotEnough";
-					}
-					state("insert into record values('"+payee+"','"+payer+"','"+timeStamp+"',"+ value+");");
-					state("update users set balance = '"+(payerBalance-value)+"' where userid ='"+payer+"';");
-					resultSet=stateWithReturn("select * from users where userid = '"+payee+"';");
-					resultSet.next();
-					Double payeeBalance=resultSet.getDouble("balance");
-					state("update users set balance = '"+(payeeBalance+value)+"' where userid ='"+payee+"';");
-					return "tradeFromPayerSuccess";
-				}else {
-					return "tradeFailed(basic.MD5)";
+				Double payerBalance=resultSet.getDouble("balance");
+				if (payerBalance<value){
+					return "balanceNotEnough";
 				}
+				state("insert into record values('"+payee+"','"+payer+"','"+timeStamp+"',"+ value+");");
+				state("update users set balance = '"+(payerBalance-value)+"' where userid ='"+payer+"';");
+				resultSet=stateWithReturn("select * from users where userid = '"+payee+"';");
+				resultSet.next();
+				Double payeeBalance=resultSet.getDouble("balance");
+				state("update users set balance = '"+(payeeBalance+value)+"' where userid ='"+payee+"';");
+				return "tradeFromPayerSuccess";
+			}else {
+				return "tradeFailed(MD5)";
 			}
 		}catch (SQLException e){
 			e.printStackTrace();
@@ -186,9 +167,13 @@ public class SqlSRP extends SqlParent {
 			case "readyForTrade":{
 				//付款方交易时第一次发送 失败返回error
 				//服务器返回 userID2+" "+value+" "+time
-				//然后付款方发送 收款人ID 付款方ID 时间戳 交易金额 (支付密码+时间戳+userID)的MD5
                 res = readyForTrade(states[1],socket);//(userid)
                 break;
+			}
+			//然后付款方发送 收款人ID 付款方ID 时间戳 交易金额 (支付密码+时间戳+userID)的MD5
+			case "tradeFromPayer":{
+				res=tradeFromPayer(states[1],states[2],states[3],Double.parseDouble(states[4]),states[5]);//(收款人ID 付款方ID 时间戳 交易金额 (支付密码+时间戳+userID)的MD5)
+				break;
 			}
 			default:{
 				//无法识别
