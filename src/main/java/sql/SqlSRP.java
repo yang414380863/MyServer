@@ -136,14 +136,19 @@ public class SqlSRP extends SqlParent {
 				if (payerBalance<value){
 					return "balanceNotEnough";
 				}
-				state("insert into record values('"+payee+"','"+payer+"','"+timeStamp+"',"+ value+");");
+				resultSet=stateWithReturn("select * from temp where payee = '"+payee+"'and payer = '"+payer+"'and value = "+value+" and haspaid = "+false+";");
+				if (!resultSet.next()){
+					return "tradeNotFind";
+				}
+				String content=resultSet.getString("content");
+				state("insert into record values('"+payee+"','"+payer+"','"+timeStamp+"',"+ value+",'"+content+"');");
 				state("update users set balance = '"+(payerBalance-value)+"' where userid ='"+payer+"';");
 				resultSet=stateWithReturn("select * from users where userid = '"+payee+"';");
 				resultSet.next();
 				Double payeeBalance=resultSet.getDouble("balance");
 				state("update users set balance = '"+(payeeBalance+value)+"' where userid ='"+payee+"';");
 
-				state(" update temp set haspaid = "+true+" where payee = '"+payee+"'and payer = '"+payer+"';" );
+				state(" update temp set haspaid = "+true+" where payee = '"+payee+"'and payer = '"+payer+"'and value = "+value+";" );
 				return "tradeFromPayerSuccess";
 			}else {
 				return "tradeFailed(MD5)";
@@ -209,7 +214,7 @@ public class SqlSRP extends SqlParent {
                 res = readyForTrade(states[1],socket);//(userid)
                 break;
 			}
-			//付款方确认交易 交易已存在:tradeExisted 找不到付款方ID:payerIdNotFind 余额不足:balanceNotEnough 交易成功:tradeFromPayerSuccess MD5码验证失败:tradeFailed(MD5)
+			//付款方确认交易 交易已存在:tradeExisted 找不到交易:tradeNotFind 找不到付款方ID:payerIdNotFind 余额不足:balanceNotEnough 交易成功:tradeFromPayerSuccess MD5码验证失败:tradeFailed(MD5)
 			case "tradeFromPayer":{
 				res=tradeFromPayer(states[1],states[2],states[3],Double.parseDouble(states[4]),states[5]);//(收款人ID 付款方ID 时间戳 交易金额 (支付密码+时间戳+userID)的MD5)
 				break;
