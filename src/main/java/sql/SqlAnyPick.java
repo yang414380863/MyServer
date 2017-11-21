@@ -76,13 +76,13 @@ public class SqlAnyPick extends SqlParent {
 		state(" update users set mark = '"+mark+"' where username = '"+userName+"'and password = '"+password+"';" );
 	}
 
-	public boolean refreshWebsite(String indexurl,String link,String latestupdate){
-		resultSet=stateWithReturn("select * from websites where indexurl = '"+indexurl+"';");
+	public boolean refreshWebsite(String indexUrl,String link,String latestUpdate){
+		resultSet=stateWithReturn("select * from websites where indexurl = '"+indexUrl+"';");
 		try {
 			if (resultSet.next()){
-				state(" update websites set indexurl = '"+indexurl+"', link = '"+link+"', latestupdate = '"+latestupdate+"' where indexurl = '"+indexurl+"';");
+				state(" update websites set indexurl = '"+indexUrl+"', link = '"+link+"', latestupdate = '"+latestUpdate+"' where indexurl = '"+indexUrl+"';");
 			}else {
-				state("insert into websites values('"+indexurl+"','"+link+"','"+latestupdate+"');");
+				state("insert into websites values('"+indexUrl+"','"+link+"','"+latestUpdate+"');");
 			}
 			return true;
 		}catch (SQLException e){
@@ -90,5 +90,19 @@ public class SqlAnyPick extends SqlParent {
 			return false;
 		}
 	}
-	//todo:String getPush(){ }
+	//todo:String
+	private String checkPush(String userName){
+		resultSet=stateWithReturn("select * from users where username = "+userName+";");
+		try {
+			if (resultSet.next()){
+				String mark=resultSet.getString("mark");
+				return "";
+			}else {
+				return "error";
+			}
+		}catch (SQLException e){
+			e.printStackTrace();
+			return "error";
+		}
+	}
 }

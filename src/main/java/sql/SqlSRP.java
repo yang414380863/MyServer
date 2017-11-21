@@ -3,10 +3,6 @@ package sql;
 import basic.MD5;
 import basic.RSA;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
 import java.net.Socket;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -36,6 +32,7 @@ public class SqlSRP extends SqlParent {
 			return "error";
 		}
 	}
+
 	String login(String userID,String loginPassword){
 		resultSet=stateWithReturn("select * from users where userid = '"+userID+"'and loginpass = '"+loginPassword+"';");
 		try {
@@ -50,6 +47,7 @@ public class SqlSRP extends SqlParent {
 			return "error";
 		}
 	}
+
 	String queryBalance(String userID,String loginPassword){
 		resultSet=stateWithReturn("select * from users where userid = '"+userID+"'and loginpass = '"+loginPassword+"';");
 		try {
@@ -64,25 +62,40 @@ public class SqlSRP extends SqlParent {
 			return "error";
 		}
 	}
+	//根据ID解密RSA
+	String decrypt(String userID,String statement){
+		try {
+			ResultSet resultSet=stateWithReturn("select * from users where userid = "+userID+";");
+			if (resultSet.next()){
+				String privateKey=resultSet.getString("privatekey");
+				System.out.println("get privateKey: "+privateKey);
+				return RSA.decrypt(statement,RSA.getPrivateKey(privateKey));
+			}else {
+				return "decryptError";
+			}
+		}catch (Exception e){
+			e.printStackTrace();
+			return "error";
+		}
+	}
 
 	String tradeFromPayee(String payee,String payer,String timeStamp,double value,String content){
-		state("insert into temp values('"+payee+"','"+payer+"','"+timeStamp+"','"+ value+"','"+content+"');");
+		state("insert into temp values('"+payee+"','"+payer+"','"+timeStamp+"','"+ value+"','"+content+"',"+false+");");
 		return "insert success";
 	}
 
 	String readyForTrade(String payer, Socket socket){
 		try {
-			resultSet=stateWithReturn("select * from temp where payer = '"+payer+"';");
+			resultSet=stateWithReturn("select * from temp where payer = '"+payer+"'and haspaid = "+false+";");
 			while (true){
 				if (resultSet.next()){
 					String payee=resultSet.getString("payee");
 					Double value=resultSet.getDouble("value");
 					String timestamp=resultSet.getString("timestamp");
-					state("delete from temp where payer = '"+payer+"';");
 					String result=payee+" "+value+" "+timestamp;
 					return result;
 				}else {
-					resultSet=stateWithReturn("select * from temp where payer = '"+payer+"';");
+					resultSet=stateWithReturn("select * from temp where payer = '"+payer+"'and haspaid = "+false+";");
 				}
 			}
 		}catch (SQLException e){
@@ -109,7 +122,7 @@ public class SqlSRP extends SqlParent {
 			//这里需要对比MD5
 			resultSet=stateWithReturn("select * from users where userid = '"+payer+"' ;");
 			if (!resultSet.next()){
-				return "payer id not find";
+				return "payerIdNotFind";
 			}
 			String payPassword=resultSet.getString("paypass");
 			String loginPassword=resultSet.getString("loginpass");
@@ -129,9 +142,30 @@ public class SqlSRP extends SqlParent {
 				resultSet.next();
 				Double payeeBalance=resultSet.getDouble("balance");
 				state("update users set balance = '"+(payeeBalance+value)+"' where userid ='"+payee+"';");
+
+				state(" update temp set haspaid = "+true+" where payee = '"+payee+"'and payer = '"+payer+"';" );
 				return "tradeFromPayerSuccess";
 			}else {
 				return "tradeFailed(MD5)";
+			}
+		}catch (SQLException e){
+			e.printStackTrace();
+			return "error";
+		}
+	}
+
+	String checkTradeResult(String payee,String payer,String timeStamp,double value,String content){
+		try {
+			resultSet=stateWithReturn("select * from temp where payee = '"+payee+"'and payer = '"+payer+"'and timestamp = '"+timeStamp+"'and value = "+value+"and content = '"+content+"';");
+			if (!resultSet.next()){
+				return "tradeNotFind";
+			}
+			boolean haspaid=resultSet.getBoolean("haspaid");
+			if (haspaid){
+				state("delete from temp where payer = '"+payer+"';");
+				return "finishPaid";
+			}else {
+				return "notPaidYet";
 			}
 		}catch (SQLException e){
 			e.printStackTrace();
@@ -144,18 +178,22 @@ public class SqlSRP extends SqlParent {
 		String action=states[0];
 		String res;
 		switch (action){
-			case "register":{//注册 成功返回:RSA公钥,ID已存在:返回userIDExisted
+			//注册 成功返回:RSA公钥,ID已存在:返回userIDExisted
+			case "register":{
                 res = this.register(states[1],states[2],states[3]);//(userid loginpass paypassMD5)
                 break;
 			}
-			case "login":{//登录 成功返回:RSA公钥,登录失败:返回loginFailed
+			//登录 成功返回:RSA公钥,登录失败:返回loginFailed
+			case "login":{
                 res = this.login(states[1],states[2]);//(userid loginpass)
                 break;
 			}
-			case "queryBalance":{//查询 成功返回:余额,服务器端密码已经被修改导致登录,查询失败:返回queryFailed
+			//查询 成功返回:余额,服务器端密码已经被修改导致登录,查询失败:返回queryFailed
+			case "queryBalance":{
                 res = this.queryBalance(states[1],states[2]);//(userid loginpass)
                 break;
 			}
+			//收款方上传交易账单 返回insert success
 			case "tradeFromPayee":{
 				String userID=states[1];
 				String express=decrypt(userID,states[2]);
@@ -164,20 +202,30 @@ public class SqlSRP extends SqlParent {
                 res = tradeFromPayee(array[0],array[1],array[2],Double.parseDouble(array[3]),array[4]);//收款人ID 付款方ID 时间戳 交易金额 物品清单
                 break;
 			}
+			//付款方准备发起支付 返回 收款方ID 金额 时间戳
 			case "readyForTrade":{
-				//付款方交易时第一次发送 失败返回error
+				//付款方交易时第一次发送
 				//服务器返回 userID2+" "+value+" "+time
                 res = readyForTrade(states[1],socket);//(userid)
                 break;
 			}
-			//然后付款方发送 收款人ID 付款方ID 时间戳 交易金额 (支付密码+时间戳+userID)的MD5
+			//付款方确认交易 交易已存在:tradeExisted 找不到付款方ID:payerIdNotFind 余额不足:balanceNotEnough 交易成功:tradeFromPayerSuccess MD5码验证失败:tradeFailed(MD5)
 			case "tradeFromPayer":{
 				res=tradeFromPayer(states[1],states[2],states[3],Double.parseDouble(states[4]),states[5]);//(收款人ID 付款方ID 时间戳 交易金额 (支付密码+时间戳+userID)的MD5)
 				break;
 			}
+			//收款方确认交易结果 没找到交易记录:tradeNotFind 支付已完成:finishPaid 未支付:notPaidYet
+			case "checkTradeResult":{
+				String userID=states[1];
+				String express=decrypt(userID,states[2]);
+				System.out.println("express: "+express);
+				String[] array=express.split(" ");//暂时用空格分割
+				res = checkTradeResult(array[0],array[1],array[2],Double.parseDouble(array[3]),array[4]);//收款人ID 付款方ID 时间戳 交易金额 物品清单
+				break;
+			}
+			//无法识别
 			default:{
-				//无法识别
-                res = "statementError";//sql.stateWithReturn(statement).toString();
+                res = "statementError";
                 break;
 			}
 		}
@@ -186,20 +234,5 @@ public class SqlSRP extends SqlParent {
 		return res;
 	}
 
-	String decrypt(String userID,String statement){
-		try {
-			ResultSet resultSet=stateWithReturn("select * from users where userid = "+userID+";");
-			if (resultSet.next()){
-				String privateKey=resultSet.getString("privatekey");
-                System.out.println("get privateKey: "+privateKey);
-				return RSA.decrypt(statement,RSA.getPrivateKey(privateKey));
-			}else {
-				return "decryptError";
-			}
-		}catch (Exception e){
-			e.printStackTrace();
-			return "error";
-		}
-	}
 
 }
