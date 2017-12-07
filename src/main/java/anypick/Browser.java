@@ -52,6 +52,10 @@ public class Browser {
                     if (websiteNow.getCategory()==null){
                         if (categoryCount<0){
                             websiteCount++;
+                            if (websiteCount==websites.length){
+                                websiteCount=0;
+                                websiteNow=websites[websiteCount];
+                            }
                             websiteNow=websites[websiteCount];
                             categoryCount=0;
                         }else {
@@ -60,16 +64,17 @@ public class Browser {
                     }else {
                         if (categoryCount==websiteNow.getCategory().length/2){
                             websiteCount++;
+                            if (websiteCount==websites.length){
+                                websiteCount=0;
+                                websiteNow=websites[websiteCount];
+                            }
                             websiteNow=websites[websiteCount];
                             categoryCount=0;
                         }else {
                             websiteNow.setIndexUrl(websiteNow.getCategory()[categoryCount*2+1]);
                         }
                     }
-                    if (websiteCount==websites.length){
-                        websiteCount=0;
-                        websiteNow=websites[websiteCount];
-                    }
+
 
                     String url=websiteNow.getIndexUrl();
                     //System.out.println("website No: "+websiteCount);
