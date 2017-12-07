@@ -13,8 +13,8 @@ public class JsonUtils {
         return gson.toJson(object);
     }
 
-    public static Website JsonToObject(String string){
+    public static Website JsonToWebsite(String string){
         Gson gson = new Gson();
-        return gson.fromJson(string,Website.class);
+        return gson.fromJson(string.trim(),Website.class);
     }
 }

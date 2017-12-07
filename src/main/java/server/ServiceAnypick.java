@@ -9,7 +9,6 @@ import java.net.Socket;
 
 public class ServiceAnypick extends ServiceParent {
 	private static int PORT=26975;
-	public static boolean isReady=true;
 
 	public ServiceAnypick(){
 		super(PORT);

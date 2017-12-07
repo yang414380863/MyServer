@@ -1,6 +1,7 @@
 package sql;
 
 import java.net.Socket;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class SqlAnyPick extends SqlParent {
@@ -29,7 +30,7 @@ public class SqlAnyPick extends SqlParent {
                 break;
 			}
 			case "checkPush":{
-				res =  "";
+				res =  checkPush(states[1]);
                 break;
 			}
 			default:{
@@ -90,13 +91,26 @@ public class SqlAnyPick extends SqlParent {
 			return false;
 		}
 	}
-	//todo:String
 	private String checkPush(String userName){
-		resultSet=stateWithReturn("select * from users where username = "+userName+";");
+		resultSet=stateWithReturn("select * from users where username = '"+userName+"';");
+		StringBuilder state=new StringBuilder("");
+		StringBuilder res=new StringBuilder("");
 		try {
 			if (resultSet.next()){
-				String mark=resultSet.getString("mark");
-				return "";
+				String[] websites=resultSet.getString("mark").split(",");
+				for (int i=0;i<websites.length;i++){
+					state.append(" indexurl = \"").append(websites[i]).append("\"");
+					if (i==websites.length-1){
+						state.append(";");
+					}else {
+						state.append(" or ");
+					}
+				}
+				System.out.println(state);
+				ResultSet resultSet=stateWithReturn("select * from websites where "+state);
+				while (resultSet.next()){
+					res.append(resultSet.getString("indexurl")).append(",").append(resultSet.getString("link")).append(",").append(resultSet.getString("latestupdate")).append(";");
+				}
 			}else {
 				return "error";
 			}
@@ -104,5 +118,6 @@ public class SqlAnyPick extends SqlParent {
 			e.printStackTrace();
 			return "error";
 		}
+		return res.toString();
 	}
 }

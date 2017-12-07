@@ -25,8 +25,7 @@ public class Browser {
     SqlAnyPick sqlAnyPick;
     //将默认的构造函数私有化，防止其他类手动new
     private Browser(){
-        WebsiteInit.init();
-        websites=WebsiteInit.websitesInit;
+        websites=WebsiteInit.getWebsiteList();
         sqlAnyPick=new SqlAnyPick();
     }
 
@@ -45,23 +44,23 @@ public class Browser {
     }
 
     public void sendRequest(){
-        websiteNow=websites[websiteCount];
         new Thread(new Runnable() {
             @Override
             public void run() {
+                websiteNow=websites[websiteCount];
                 try{
                     if (websiteNow.getCategory()==null){
                         if (categoryCount<0){
-                            ServiceAnypick.isReady=true;
                             websiteCount++;
+                            websiteNow=websites[websiteCount];
                             categoryCount=0;
                         }else {
-                            categoryCount=-5;
+                            categoryCount=-10;
                         }
                     }else {
                         if (categoryCount==websiteNow.getCategory().length/2){
-                            ServiceAnypick.isReady=true;
                             websiteCount++;
+                            websiteNow=websites[websiteCount];
                             categoryCount=0;
                         }else {
                             websiteNow.setIndexUrl(websiteNow.getCategory()[categoryCount*2+1]);
@@ -69,10 +68,14 @@ public class Browser {
                     }
                     if (websiteCount==websites.length){
                         websiteCount=0;
+                        websiteNow=websites[websiteCount];
                     }
+
                     String url=websiteNow.getIndexUrl();
+                    System.out.println("website No: "+websiteCount);
+                    System.out.println("category No: "+categoryCount);
+                    System.out.println("Request url "+url);
                     OkHttpClient client = new OkHttpClient();
-                    //System.out.println("Request url "+url);
                     final Request request = new Request.Builder()
                             .url(url)
                             .build();
@@ -80,9 +83,9 @@ public class Browser {
                     call.enqueue(new Callback() {
                         @Override
                         public void onFailure(Call call, IOException e) {
-                            categoryCount++;
                             System.out.println("onFailure");
                             e.printStackTrace();
+                            categoryCount++;
                             EventBus.getDefault().post("nextWebsite");
                         }
                         @Override
@@ -103,6 +106,8 @@ public class Browser {
                     });
                 }catch (Exception e){
                     e.printStackTrace();
+                    categoryCount++;
+                    EventBus.getDefault().post("nextWebsite");
                 }
             }
         }).start();
