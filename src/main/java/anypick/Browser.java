@@ -65,8 +65,8 @@ public class Browser {
                     }
 
                     String url=websiteNow.getIndexUrl();
-                    System.out.println("website No: "+websiteCount);
-                    System.out.println("category No: "+categoryCount);
+                    //System.out.println("website No: "+websiteCount);
+                    //System.out.println("category No: "+categoryCount);
                     System.out.println("Request url "+url);
                     categoryCount++;
                     OkHttpClient client = new OkHttpClient();
