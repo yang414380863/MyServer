@@ -58,15 +58,17 @@ public class Browser {
                     }else {
                         if (categoryCount==websiteNow.getCategory().length/2){
                             nextWebsite();
+                            websiteNow.setIndexUrl(websiteNow.getCategory()[categoryCount*2+1]);
                         }else {
                             websiteNow.setIndexUrl(websiteNow.getCategory()[categoryCount*2+1]);
                         }
                     }
 
                     String url=websiteNow.getIndexUrl();
-                    //System.out.println("website No: "+websiteCount);
-                    //System.out.println("category No: "+categoryCount);
+                    System.out.println("website No: "+websiteCount);
+                    System.out.println("category No: "+categoryCount);
                     System.out.println("Request url "+url);
+                    categoryCount++;
                     OkHttpClient client = new OkHttpClient();
                     final Request request = new Request.Builder()
                             .url(url)
@@ -77,12 +79,9 @@ public class Browser {
                         public void onFailure(Call call, IOException e) {
                             System.out.println("onFailure");
                             e.printStackTrace();
-                            categoryCount++;
-                            EventBus.getDefault().post("nextWebsite");
                         }
                         @Override
                         public void onResponse(Call call, Response response) throws IOException {
-                            categoryCount++;
                             if (!websiteNow.isJsonIndex()){
                                 //解析HTML
                                 Document doc= Jsoup.parse(response.body().string());
@@ -98,7 +97,7 @@ public class Browser {
                     });
                 }catch (Exception e){
                     e.printStackTrace();
-                    categoryCount++;
+                    System.out.println("Error");
                     EventBus.getDefault().post("nextWebsite");
                 }
             }
@@ -137,9 +136,8 @@ public class Browser {
         websiteCount++;
         if (websiteCount==websites.length){
             websiteCount=0;
-            websiteNow=websites[websiteCount];
         }
-        categoryCount=0;
         websiteNow=websites[websiteCount];
+        categoryCount=0;
     }
 }

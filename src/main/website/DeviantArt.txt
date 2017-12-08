@@ -17,7 +17,7 @@
         "selector": ""
     },
     "detailItemSelector": "div[class=dev-view-deviation]",
-    "indexUrl": "https://www.deviantart.com/whats-hot/",
+    "indexUrl": "https://www.deviantart.com/newest/",
     "itemRule": {
         "JsonLinkRule": {
             "jsonPath": ""
