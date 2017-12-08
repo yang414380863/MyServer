@@ -51,35 +51,22 @@ public class Browser {
                 try{
                     if (websiteNow.getCategory()==null){
                         if (categoryCount<0){
-                            websiteCount++;
-                            if (websiteCount==websites.length){
-                                websiteCount=0;
-                                websiteNow=websites[websiteCount];
-                            }
-                            websiteNow=websites[websiteCount];
-                            categoryCount=0;
+                            nextWebsite();
                         }else {
                             categoryCount=-10;
                         }
                     }else {
                         if (categoryCount==websiteNow.getCategory().length/2){
-                            websiteCount++;
-                            if (websiteCount==websites.length){
-                                websiteCount=0;
-                                websiteNow=websites[websiteCount];
-                            }
-                            websiteNow=websites[websiteCount];
-                            categoryCount=0;
+                            nextWebsite();
                         }else {
                             websiteNow.setIndexUrl(websiteNow.getCategory()[categoryCount*2+1]);
                         }
                     }
 
-
                     String url=websiteNow.getIndexUrl();
                     //System.out.println("website No: "+websiteCount);
                     //System.out.println("category No: "+categoryCount);
-                    //System.out.println("Request url "+url);
+                    System.out.println("Request url "+url);
                     OkHttpClient client = new OkHttpClient();
                     final Request request = new Request.Builder()
                             .url(url)
@@ -144,5 +131,15 @@ public class Browser {
             if (sqlAnyPick.refreshWebsite(indexurl,link,latestupdate)){
                 EventBus.getDefault().post("nextWebsite");
         }
+    }
+
+    private void nextWebsite(){
+        websiteCount++;
+        if (websiteCount==websites.length){
+            websiteCount=0;
+            websiteNow=websites[websiteCount];
+        }
+        categoryCount=0;
+        websiteNow=websites[websiteCount];
     }
 }
