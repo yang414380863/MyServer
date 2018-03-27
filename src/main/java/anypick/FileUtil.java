@@ -11,7 +11,12 @@ import java.io.FileReader;
 
 public class FileUtil {
         public static String readFile(String fileName){
-            File directory = new File("website/"+fileName);//设定当前文件夹
+            File directory;
+            if (System.getProperty ("os.name").startsWith("Win")){
+	            directory = new File("src/main/website/"+fileName);//设定当前文件夹
+            }else {
+	            directory = new File("/home/yang/java/src/website/"+fileName);//设定为当前文件夹
+            }
             StringBuilder result = new StringBuilder();
             try{
                 BufferedReader br = new BufferedReader(new FileReader(directory.getCanonicalPath()));//构造一个BufferedReader类来读取文件
@@ -26,7 +31,12 @@ public class FileUtil {
             return result.toString();
         }
     public static String[] getList(){
-        File directory = new File("website/");//设定当前文件夹
+	    File directory;
+	    if (System.getProperty ("os.name").startsWith("Win")){
+		    directory = new File("src/main/website");//设定当前文件夹
+	    }else {
+		    directory = new File("/home/yang/java/src/website/");//设定为当前文件夹
+	    }
         String[] tempList = directory.list();
         return tempList;
     }

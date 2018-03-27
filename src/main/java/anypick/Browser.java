@@ -7,10 +7,11 @@ import org.greenrobot.eventbus.EventBus;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
-import server.ServiceAnypick;
 import sql.SqlAnyPick;
 
 import java.io.IOException;
+import java.net.ConnectException;
+import java.net.SocketTimeoutException;
 import java.util.Date;
 import java.util.List;
 
@@ -72,13 +73,27 @@ public class Browser {
                     OkHttpClient client = new OkHttpClient();
                     final Request request = new Request.Builder()
                             .url(url)
+                            .addHeader("Connection", "close")
                             .build();
                     Call call = client.newCall(request);
                     call.enqueue(new Callback() {
                         @Override
                         public void onFailure(Call call, IOException e) {
                             System.out.println("onFailure");
-                            e.printStackTrace();
+                            if (e instanceof SocketTimeoutException) {
+                                //判断超时异常
+                                System.out.println("SocketTimeoutException");
+                            }else if (e instanceof ConnectException) {
+                                ////判断连接异常
+                                System.out.println("ConnectException");
+                            }else {
+                                e.printStackTrace();
+                            }
+                            if(!call.isCanceled()){
+                                System.out.println("canceled1");
+                                call.cancel();
+                            }
+                            EventBus.getDefault().post("nextWebsite");
                         }
                         @Override
                         public void onResponse(Call call, Response response) throws IOException {
@@ -86,11 +101,19 @@ public class Browser {
                                 //解析HTML
                                 Document doc= Jsoup.parse(response.body().string());
                                 analysis(doc);
+                                if(!call.isCanceled()){
+                                    System.out.println("canceled2");
+                                    call.cancel();
+                                }
                             }else {
                                 //解析JSON
                                 String s=response.body().string();
                                 //JSONObject jsonObject=JSON.parseObject(response.body().string());
                                 analysisJSON(s);
+                                if(!call.isCanceled()){
+                                    System.out.println("canceled3");
+                                    call.cancel();
+                                }
                             }
 
                         }
@@ -127,8 +150,8 @@ public class Browser {
         String indexurl=websiteNow.getIndexUrl();
         String link=links.get(0).toString();
         String latestupdate=String.valueOf(new Date().getTime());
-            if (sqlAnyPick.refreshWebsite(indexurl,link,latestupdate)){
-                EventBus.getDefault().post("nextWebsite");
+        if (sqlAnyPick.refreshWebsite(indexurl,link,latestupdate)){
+            EventBus.getDefault().post("nextWebsite");
         }
     }
 
