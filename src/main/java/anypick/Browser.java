@@ -3,7 +3,6 @@ package anypick;
 import anypick.html.SelectorAndRegex;
 import anypick.json.JsonRuleConnector;
 import okhttp3.*;
-import org.greenrobot.eventbus.EventBus;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
@@ -14,6 +13,9 @@ import java.net.ConnectException;
 import java.net.SocketTimeoutException;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 //单例模式
 public class Browser {
@@ -24,10 +26,12 @@ public class Browser {
     private int categoryCount=0;
     private Website[] websites;
     SqlAnyPick sqlAnyPick;
+    ScheduledExecutorService threadPool;
     //将默认的构造函数私有化，防止其他类手动new
     private Browser(){
         websites=WebsiteInit.getWebsiteList();
         sqlAnyPick=new SqlAnyPick();
+        threadPool = Executors.newScheduledThreadPool(5);
     }
 
     public static Browser getInstance(){
@@ -45,7 +49,7 @@ public class Browser {
     }
 
     public void sendRequest(){
-        new Thread(new Runnable() {
+        threadPool.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
                 websiteNow=websites[websiteCount];
@@ -64,7 +68,6 @@ public class Browser {
                             websiteNow.setIndexUrl(websiteNow.getCategory()[categoryCount*2+1]);
                         }
                     }
-
                     String url=websiteNow.getIndexUrl();
                     //System.out.println("website No: "+websiteCount);
                     //System.out.println("category No: "+categoryCount);
@@ -73,7 +76,7 @@ public class Browser {
                     OkHttpClient client = new OkHttpClient();
                     final Request request = new Request.Builder()
                             .url(url)
-                            .addHeader("Connection", "close")
+                            //.addHeader("Connection", "close")
                             .build();
                     Call call = client.newCall(request);
                     call.enqueue(new Callback() {
@@ -89,42 +92,35 @@ public class Browser {
                             }else {
                                 e.printStackTrace();
                             }
-                            if(!call.isCanceled()){
-                                System.out.println("canceled1");
-                                call.cancel();
-                            }
-                            EventBus.getDefault().post("nextWebsite");
+                            //EventBus.getDefault().post("nextWebsite");
                         }
                         @Override
                         public void onResponse(Call call, Response response) throws IOException {
-                            if (!websiteNow.isJsonIndex()){
-                                //解析HTML
-                                Document doc= Jsoup.parse(response.body().string());
-                                analysis(doc);
-                                if(!call.isCanceled()){
-                                    System.out.println("canceled2");
-                                    call.cancel();
+
+                            try {
+                                if (!websiteNow.isJsonIndex()){
+                                    //解析HTML
+                                    Document doc= Jsoup.parse(response.body().string());
+                                    analysis(doc);
+                                }else {
+                                    //解析JSON
+                                    String s=response.body().string();
+                                    analysisJSON(s);
                                 }
-                            }else {
-                                //解析JSON
-                                String s=response.body().string();
-                                //JSONObject jsonObject=JSON.parseObject(response.body().string());
-                                analysisJSON(s);
-                                if(!call.isCanceled()){
-                                    System.out.println("canceled3");
-                                    call.cancel();
-                                }
+                            }catch (Exception e){
+                                System.out.println("Exception");
+                                e.printStackTrace();
                             }
 
                         }
                     });
                 }catch (Exception e){
-                    e.printStackTrace();
+                    //e.printStackTrace();
                     System.out.println("Error");
-                    EventBus.getDefault().post("nextWebsite");
+                    //EventBus.getDefault().post("nextWebsite");
                 }
             }
-        }).start();
+        },0,60, TimeUnit.SECONDS);
     }
 
     private void analysis(Document doc){
@@ -138,7 +134,7 @@ public class Browser {
         String link=SelectorAndRegex.getItemData(doc,websiteNow,"Link",0);
         String latestupdate=String.valueOf(new Date().getTime());
         if (sqlAnyPick.refreshWebsite(indexurl,link,latestupdate)){
-            EventBus.getDefault().post("nextWebsite");
+            //EventBus.getDefault().post("nextWebsite");
         }
     }
 
@@ -151,7 +147,7 @@ public class Browser {
         String link=links.get(0).toString();
         String latestupdate=String.valueOf(new Date().getTime());
         if (sqlAnyPick.refreshWebsite(indexurl,link,latestupdate)){
-            EventBus.getDefault().post("nextWebsite");
+            //EventBus.getDefault().post("nextWebsite");
         }
     }
 

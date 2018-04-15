@@ -1,5 +1,8 @@
 package sql;
 
+import anypick.JsonUtils;
+import anypick.WebsiteInit;
+
 import java.net.Socket;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -9,6 +12,21 @@ public class SqlAnyPick extends SqlParent {
 	private static final String databaseName= "anypick";
 	public SqlAnyPick(){
 		super(databaseName);
+	}
+
+	public boolean refreshWebsite(String indexUrl,String link,String latestUpdate){
+		resultSet=stateWithReturn("select * from websites where indexurl = '"+indexUrl+"';");
+		try {
+			if (resultSet.next()){
+				state(" update websites set indexurl = '"+indexUrl+"', link = '"+link+"', latestupdate = '"+latestUpdate+"' where indexurl = '"+indexUrl+"';");
+			}else {
+				state("insert into websites values('"+indexUrl+"','"+link+"','"+latestUpdate+"');");
+			}
+			return true;
+		}catch (SQLException e){
+			e.printStackTrace();
+			return false;
+		}
 	}
 
 	public String judge(String statement, Socket socket){
@@ -32,6 +50,14 @@ public class SqlAnyPick extends SqlParent {
 			case "checkPush":{
 				res =  checkPush(states[1]);
                 break;
+			}
+			case "marketGetList":{
+				res =  marketGetList();
+				break;
+			}
+			case "marketGetDetail":{
+				res =  marketGetDetail(states[1]);
+				break;
 			}
 			default:{
 				//无法识别
@@ -77,20 +103,6 @@ public class SqlAnyPick extends SqlParent {
 		state(" update users set mark = '"+mark+"' where username = '"+userName+"'and password = '"+password+"';" );
 	}
 
-	public boolean refreshWebsite(String indexUrl,String link,String latestUpdate){
-		resultSet=stateWithReturn("select * from websites where indexurl = '"+indexUrl+"';");
-		try {
-			if (resultSet.next()){
-				state(" update websites set indexurl = '"+indexUrl+"', link = '"+link+"', latestupdate = '"+latestUpdate+"' where indexurl = '"+indexUrl+"';");
-			}else {
-				state("insert into websites values('"+indexUrl+"','"+link+"','"+latestUpdate+"');");
-			}
-			return true;
-		}catch (SQLException e){
-			e.printStackTrace();
-			return false;
-		}
-	}
 	private String checkPush(String userName){
 		resultSet=stateWithReturn("select * from users where username = '"+userName+"';");
 		StringBuilder state=new StringBuilder("");
@@ -119,5 +131,30 @@ public class SqlAnyPick extends SqlParent {
 			return "error";
 		}
 		return res.toString();
+	}
+
+	private String marketGetList(){
+		String[] websiteNameList= WebsiteInit.getWebsiteNameList();
+		if (websiteNameList.length==0){
+			return "error";
+		}
+		StringBuilder res=new StringBuilder(websiteNameList[0]);
+		for (int i=1;i<websiteNameList.length;i++){
+			res.append(",").append(websiteNameList[i]);
+		}
+		return res.toString();
+	}
+
+	private String marketGetDetail(String name){
+		String[] websiteNameList= WebsiteInit.getWebsiteNameList();
+		if (websiteNameList.length==0){
+			return "error";
+		}
+		for (int i=0;i<websiteNameList.length;i++){
+			if (websiteNameList[i].equals(name)){
+				return JsonUtils.ObjectToJson(WebsiteInit.getWebsiteList()[i]);
+			}
+		}
+		return "error";
 	}
 }

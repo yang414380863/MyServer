@@ -3,13 +3,17 @@ package server;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 abstract public class ServiceParent {
 	private int PORT;
 	ServerSocket serverSocket=null;
+	ExecutorService cachedThreadPool;
 	ServiceParent(int port){
 		PORT=port;
 		System.out.println("service "+this.getClass().getName() +" running.PORT= "+PORT);
+		cachedThreadPool = Executors.newCachedThreadPool();
 	}
 	void initServer(){
 		try {
@@ -22,7 +26,7 @@ abstract public class ServiceParent {
 	abstract void startServer();
 	void startReceiveServer(){
 		ServiceParent serviceParent=this;
-		new Thread(new Runnable() {
+		cachedThreadPool.execute(new Runnable() {
 			@Override
 			public void run() {
 				while (true){
@@ -37,7 +41,7 @@ abstract public class ServiceParent {
 					}
 				}
 			}
-		}) .start();
+		});
 	}
 	void startBackgroundServer(){}
 	abstract String DoStatement(String statement,Socket socket);
