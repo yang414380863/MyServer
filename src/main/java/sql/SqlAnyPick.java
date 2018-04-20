@@ -47,6 +47,15 @@ public class SqlAnyPick extends SqlParent {
 				res =  "";
                 break;
 			}
+			case "updateLocal":{//更新已下载Website
+				updateLocal(states[1],states[2],states[3]);
+				res =  "";
+				break;
+			}
+			case "getLocal":{//下载Website到本地
+				res = getLocal(states[1],states[2]);
+				break;
+			}
 			case "checkPush":{
 				res =  checkPush(states[1]);
                 break;
@@ -75,7 +84,7 @@ public class SqlAnyPick extends SqlParent {
 			if (resultSet.next()){
 				return "existed";
 			}else {
-				state("insert into users values('"+userName+"','"+password+"','');");
+				state("insert into users values('"+userName+"','"+password+"','','');");
 				return "success";
 			}
 		}catch (SQLException e){
@@ -103,13 +112,32 @@ public class SqlAnyPick extends SqlParent {
 		state(" update users set mark = '"+mark+"' where username = '"+userName+"'and password = '"+password+"';" );
 	}
 
+	private void updateLocal(String userName,String password,String local){
+		state(" update users set local = '"+local+"' where username = '"+userName+"'and password = '"+password+"';" );
+	}
+
+	private String getLocal(String userName,String password){
+		resultSet=stateWithReturn(" select * from users where username = '"+userName+"'and password = '"+password+"';" );
+		try {
+			if (resultSet.next()){
+				String local=resultSet.getString("local");
+				return "success "+local;//返回服务器储存的之前已下载内容
+			}else {
+				return "failed";
+			}
+		}catch (SQLException e){
+			e.printStackTrace();
+			return "error";
+		}
+	}
+
 	private String checkPush(String userName){
 		resultSet=stateWithReturn("select * from users where username = '"+userName+"';");
 		StringBuilder state=new StringBuilder("");
 		StringBuilder res=new StringBuilder("");
 		try {
 			if (resultSet.next()){
-				String[] websites=resultSet.getString("mark").split(",");
+				String[] websites=resultSet.getString("mark").split("!@#");
 				for (int i=0;i<websites.length;i++){
 					state.append(" indexurl = \"").append(websites[i]).append("\"");
 					if (i==websites.length-1){
@@ -121,7 +149,7 @@ public class SqlAnyPick extends SqlParent {
 				System.out.println(state);
 				ResultSet resultSet=stateWithReturn("select * from websites where "+state);
 				while (resultSet.next()){
-					res.append(resultSet.getString("indexurl")).append(",").append(resultSet.getString("link")).append(",").append(resultSet.getString("latestupdate")).append(";");
+					res.append(resultSet.getString("indexurl")).append("!@#").append(resultSet.getString("link")).append("!@#").append(resultSet.getString("latestupdate")).append("!@#!@#");
 				}
 			}else {
 				return "error";
