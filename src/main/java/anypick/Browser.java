@@ -11,6 +11,7 @@ import sql.SqlAnyPick;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.SocketTimeoutException;
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -27,11 +28,13 @@ public class Browser {
     private Website[] websites;
     SqlAnyPick sqlAnyPick;
     ScheduledExecutorService threadPool;
+    SimpleDateFormat df;
     //将默认的构造函数私有化，防止其他类手动new
     private Browser(){
         websites=WebsiteInit.getWebsiteList();
         sqlAnyPick=new SqlAnyPick();
         threadPool = Executors.newScheduledThreadPool(5);
+        df = new SimpleDateFormat("MM-dd HH:mm:ss");
     }
 
     public static Browser getInstance(){
@@ -64,14 +67,13 @@ public class Browser {
                         if (categoryCount==websiteNow.getCategory().length/2){
                             nextWebsite();
                             websiteNow.setIndexUrl(websiteNow.getCategory()[categoryCount*2+1]);
-                        }else {
+                        }else
                             websiteNow.setIndexUrl(websiteNow.getCategory()[categoryCount*2+1]);
                         }
-                    }
                     String url=websiteNow.getIndexUrl();
                     //System.out.println("website No: "+websiteCount);
                     //System.out.println("category No: "+categoryCount);
-                    System.out.println("Request url "+url);
+                    System.out.println(df.format(System.currentTimeMillis())+" Request url "+url);
                     categoryCount++;
                     OkHttpClient client = new OkHttpClient();
                     final Request request = new Request.Builder()
